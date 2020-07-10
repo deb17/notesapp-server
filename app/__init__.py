@@ -8,6 +8,6 @@ app = Flask(__name__)
 app.config.from_object(Config)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-CORS(app)
+CORS(app, resources={r'/*': {'origins': 'https://all-notes.netlify.app'}})
 
 from app import routes, models

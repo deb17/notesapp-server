@@ -23,7 +23,7 @@ def token_required(func):
             return func(*args, **kwargs)
 
         except ValueError as e:
-            return {'msg': e.args[0]}
+            return {'error': e.args[0]}
 
     return wrapper
 

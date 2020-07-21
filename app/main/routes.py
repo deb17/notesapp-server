@@ -1,34 +1,34 @@
 from app import app, db
-from app.models import Note
+from . import main
+from app.models import User, Note
 from functools import wraps
 from flask import request, g
-from google.oauth2 import id_token
-from google.auth.transport import requests
 from sqlalchemy import and_
+import jwt
 
 
 def token_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        token = request.headers.get('X-id-token')
-        try:
-            idinfo = id_token.verify_oauth2_token(
-                token, requests.Request(), app.config['CLIENT_ID'])
-
-            if idinfo['iss'] not in ['accounts.google.com',
-                                     'https://accounts.google.com']:
-                raise ValueError('Wrong issuer.')
-
-            g.userid = idinfo['sub']
-            return func(*args, **kwargs)
-
-        except ValueError as e:
-            return {'error': e.args[0]}
+        token = request.headers.get('X-access-token')
+        if token:
+            try:
+                payload = jwt.decode(
+                    token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            except Exception:
+                return {'error': 'Invalid token'}
+            else:
+                user = User.query.filter_by(
+                    public_id=payload['public_id']).first()
+                g.userid = user.id
+                return func(*args, **kwargs)
+        else:
+            return {'error': 'Token is missing'}
 
     return wrapper
 
 
-@app.route('/api/notes')
+@main.route('/api/notes')
 @token_required
 def all_notes():
 
@@ -47,7 +47,7 @@ def all_notes():
     return {'notes': result}
 
 
-@app.route('/api/note/<int:id>')
+@main.route('/api/note/<int:id>')
 @token_required
 def get_note(id):
 
@@ -71,7 +71,7 @@ def get_note(id):
     return obj
 
 
-@app.route('/api/save', methods=['POST', 'PUT'])
+@main.route('/api/save', methods=['POST', 'PUT'])
 @token_required
 def save_note():
 
@@ -96,7 +96,7 @@ def save_note():
     return {}
 
 
-@app.route('/api/delete/<int:id>', methods=['DELETE'])
+@main.route('/api/delete/<int:id>', methods=['DELETE'])
 @token_required
 def delnote(id):
 
@@ -107,7 +107,7 @@ def delnote(id):
     return {'msg': 'Note deleted.'}
 
 
-@app.route('/api/delete', methods=['DELETE'])
+@main.route('/api/delete', methods=['DELETE'])
 @token_required
 def delfolder():
 
